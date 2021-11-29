@@ -1,13 +1,9 @@
 ﻿// Author: Tataran Stefan-George (EnsyFane)
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using EU4AchievementHelper.Communication.HTTP;
 using EU4AchievementHelper.Core.Models;
 
@@ -19,14 +15,12 @@ namespace EU4AchievementHelper.GUI
 	public partial class MainWindow : Window
 	{
 		private readonly WikiClient _wikiClient;
-		private readonly SteamClient _steamClient;
 
 		private readonly ObservableCollection<Achievement> achievements;
 
-		public MainWindow(WikiClient wikiClient, SteamClient steamClient)
+		public MainWindow(WikiClient wikiClient)
 		{
 			_wikiClient = wikiClient;
-			_steamClient = steamClient;
 
 			InitializeComponent();
 

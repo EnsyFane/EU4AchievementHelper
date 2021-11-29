@@ -16,14 +16,30 @@ namespace EU4AchievementHelper.Communication.HTTP
 		private readonly string _wikiUrl;
 		private readonly string _achievementsPath;
 
+		private readonly SteamClient _steamClient;
+
 		public ObservableCollection<Achievement> Achievements { get; } = new();
 
-		public WikiClient(string wikiUrl, string achievementsPath)
+		private List<SteamAchievement> steamAchievements;
+
+		public WikiClient(string wikiUrl, string achievementsPath, SteamClient steamClient)
 		{
 			_wikiUrl = wikiUrl;
 			_achievementsPath = achievementsPath;
+			_steamClient = steamClient;
+
+			GetAchievedSteamAchievements();
 
 			CollectAchievements();
+		}
+
+		private void GetAchievedSteamAchievements()
+		{
+			steamAchievements = _steamClient.GetAchievementStats()
+				.GetAwaiter()
+				.GetResult()
+				.Where(sa => sa.IsAchieved)
+				.ToList();
 		}
 
 		private void CollectAchievements()
@@ -53,9 +69,12 @@ namespace EU4AchievementHelper.Communication.HTTP
 				Task.Factory.StartNew(() =>
 				{
 					var achievement = ParseRow(row);
-					lock (Achievements)
+					if (!steamAchievements.Where(sa => sa.AchievementName == achievement.Title).Any())
 					{
-						Achievements.Add(achievement);
+						lock (Achievements)
+						{
+							Achievements.Add(achievement);
+						}
 					}
 				});
 			}

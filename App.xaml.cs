@@ -32,13 +32,21 @@ namespace EU4AchievementHelper
 		{
 			services.AddSingleton((options) =>
 			{
-				var wikiLink = ConfigurationManager.AppSettings["WikiUrl"];
-				var achievementsPath = ConfigurationManager.AppSettings["AchievementsPath"];
+				var userId = ConfigurationManager.AppSettings["UserId"];
+				var devKey = ConfigurationManager.AppSettings["DevKey"];
+				var appId = ConfigurationManager.AppSettings["AppId"];
 
-				return new WikiClient(wikiLink, achievementsPath);
+				return new SteamClient(appId, userId, devKey);
 			});
 
-			services.AddSingleton((options) => new SteamClient());
+			services.AddSingleton((options) =>
+			{
+				var wikiLink = ConfigurationManager.AppSettings["WikiUrl"];
+				var achievementsPath = ConfigurationManager.AppSettings["AchievementsPath"];
+				var steamClient = options.GetRequiredService<SteamClient>();
+
+				return new WikiClient(wikiLink, achievementsPath, steamClient);
+			});
 		}
 
 		private static void AddGUI(ServiceCollection services)
@@ -48,7 +56,26 @@ namespace EU4AchievementHelper
 
 		private void OnStartup(object sender, StartupEventArgs e)
 		{
-			MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+			if (string.IsNullOrEmpty(ConfigurationManager.AppSettings["DevKey"]) || string.IsNullOrEmpty(ConfigurationManager.AppSettings["UserId"]))
+			{
+				var hasData = false;
+				while (!hasData)
+				{
+					var dialog = new UserSettingsDialog();
+					if (dialog.ShowDialog().Value)
+					{
+						hasData = true;
+						ConfigurationManager.AppSettings["DevKey"] = dialog.DevKey;
+						ConfigurationManager.AppSettings["UserId"] = dialog.UserId;
+
+						var steamClient = serviceProvider.GetRequiredService<SteamClient>();
+						steamClient.DevKey = dialog.DevKey;
+						steamClient.UserId = dialog.UserId;
+					}
+				}
+			}
+
+			var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
 			mainWindow.Show();
 		}
 	}
