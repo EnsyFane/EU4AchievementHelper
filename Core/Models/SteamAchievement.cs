@@ -6,7 +6,7 @@ namespace EU4AchievementHelper.Core.Models
 {
 	public class SteamAchievement
 	{
-		public string ApiName { get; }
+		public string ApiName { get; set; }
 
 		public string AchievementName
 		{
@@ -14,18 +14,31 @@ namespace EU4AchievementHelper.Core.Models
 			{
 				var name = string.Empty;
 				var tokens = ApiName.Split("_").Skip(1);
+				var specialCase = ApiName.Contains("where_s");
 				foreach (var token in tokens)
 				{
-					name += char.ToUpper(token[0]) + token[1..] + " ";
+					if (specialCase && token == "s")
+					{
+						continue;
+					}
+
+					name += token switch
+					{
+						"its" or "isnt" => token[0..^1] + "'" + token[^1],
+						"where" => specialCase ? token + "'" + "s" : token,
+						_ => token,
+					};
+
+					name += " ";
 				}
 				return name.Trim();
 			}
 		}
 
-		public int Achieved { get; }
+		public int Achieved { get; set; }
 
 		public bool IsAchieved => Achieved == 1;
 
-		public long UnlockTime { get; }
+		public long UnlockTime { get; set; }
 	}
 }

@@ -9,6 +9,8 @@ namespace EU4AchievementHelper.Core.Models
 	{
 		public string Title { get; set; }
 
+		public string HiddenTitle { get; set; }
+
 		public string Description { get; set; }
 
 		public string ImageSrc { get; set; }

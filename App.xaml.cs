@@ -2,7 +2,9 @@
 using EU4AchievementHelper.Communication.HTTP;
 using EU4AchievementHelper.GUI;
 using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Configuration;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace EU4AchievementHelper
@@ -75,6 +77,14 @@ namespace EU4AchievementHelper
 				}
 			}
 
+			try
+			{
+				Task.Run(async () => await serviceProvider.GetRequiredService<WikiClient>().Start()).Wait();
+			}
+			catch (InvalidOperationException)
+			{
+				var a = 5;
+			}
 			var mainWindow = serviceProvider.GetRequiredService<MainWindow>();
 			mainWindow.Show();
 		}

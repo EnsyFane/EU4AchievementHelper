@@ -5,6 +5,7 @@ using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -27,19 +28,29 @@ namespace EU4AchievementHelper.Communication.HTTP
 			_wikiUrl = wikiUrl;
 			_achievementsPath = achievementsPath;
 			_steamClient = steamClient;
+		}
 
-			GetAchievedSteamAchievements();
+		public async Task Start()
+		{
+			await GetAchievedSteamAchievements();
 
 			CollectAchievements();
 		}
 
-		private void GetAchievedSteamAchievements()
+		private async Task GetAchievedSteamAchievements()
 		{
-			steamAchievements = _steamClient.GetAchievementStats()
-				.GetAwaiter()
-				.GetResult()
+			var achievements = await _steamClient.GetAchievementStats();
+			steamAchievements = achievements
 				.Where(sa => sa.IsAchieved)
 				.ToList();
+
+			var a = "";
+			foreach (var ach in steamAchievements)
+			{
+				a += ach.AchievementName + "\n";
+			}
+
+			Trace.WriteLine(a);
 		}
 
 		private void CollectAchievements()
@@ -63,21 +74,36 @@ namespace EU4AchievementHelper.Communication.HTTP
 
 		private void ParseAsync(IEnumerable<HtmlNode> nodes)
 		{
+			var tasks = new List<Task>();
+
 			var childNodes = nodes.Skip(1).ToList();
 			foreach (var row in childNodes)
 			{
-				Task.Factory.StartNew(() =>
+				tasks.Add(Task.Factory.StartNew(() =>
 				{
 					var achievement = ParseRow(row);
-					if (!steamAchievements.Where(sa => sa.AchievementName == achievement.Title).Any())
+					var found = steamAchievements.Where(sa => achievement.HiddenTitle.ToLowerInvariant().Contains(sa.AchievementName.ToLowerInvariant())).ToList();
+					if (!found.Any())
 					{
 						lock (Achievements)
 						{
 							Achievements.Add(achievement);
 						}
 					}
-				});
+					else
+					{
+						lock (steamAchievements)
+						{
+							steamAchievements.Remove(found.First());
+						}
+					}
+				}));
 			}
+
+			Task.WhenAll(tasks).Wait();
+			Trace.WriteLine(Achievements.Count);
+			Trace.WriteLine(childNodes.Count);
+			Trace.WriteLine(steamAchievements.Count);
 		}
 
 		private Achievement ParseRow(HtmlNode row)
@@ -91,6 +117,8 @@ namespace EU4AchievementHelper.Communication.HTTP
 
 			var imgSrc = _wikiUrl + cells[0].Descendants("div").First().Descendants("a").First().Descendants("img").First().Attributes["src"].Value;
 			var title = cells[0].Descendants("div").First().Descendants("div").First().Descendants("div").First().InnerText;
+			var hiddenTitle = title.Replace(",", "");
+			hiddenTitle = hiddenTitle.Replace("-", " ");
 			var description = cells[0].Descendants("div").First().Descendants("div").First().Descendants("div").Skip(1).First().InnerText;
 			var startingConditions = new List<string>();
 			try
@@ -112,6 +140,7 @@ namespace EU4AchievementHelper.Communication.HTTP
 			{
 				ImageSrc = imgSrc,
 				Title = title,
+				HiddenTitle = hiddenTitle,
 				Description = description,
 				StartingConditions = startingConditions,
 				Difficulty = difficulty

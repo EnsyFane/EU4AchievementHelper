@@ -6,14 +6,14 @@ namespace EU4AchievementHelper.Communication.HTTP.Models
 {
 	public class PlayerAchievementsResponse
 	{
-		public PlayerStats Playerstats { get; }
+		public PlayerStats Playerstats { get; set; }
 	}
 
 	public class PlayerStats
 	{
-		public string SteamID { get; }
-		public string GameName { get; }
-		public IEnumerable<SteamAchievement> Achievements { get; }
-		public bool Success { get; }
+		public string SteamID { get; set; }
+		public string GameName { get; set; }
+		public IEnumerable<SteamAchievement> Achievements { get; set; }
+		public bool Success { get; set; }
 	}
 }

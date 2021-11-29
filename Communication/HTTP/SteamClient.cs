@@ -31,7 +31,9 @@ namespace EU4AchievementHelper.Communication.HTTP
 		public async Task<IEnumerable<SteamAchievement>> GetAchievementStats()
 		{
 			const string url = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/";
-			var response = await client.GetAsync($"{url}?key={DevKey}&steamid={UserId}&appid={AppId}");
+			var getUrl = $"{url}?key={DevKey}&steamid={UserId}&appid={AppId}";
+
+			var response = await client.GetAsync(getUrl);
 			if (response.IsSuccessStatusCode)
 			{
 				var playerAchievements = await response.Content.ReadAsAsync<PlayerAchievementsResponse>();
