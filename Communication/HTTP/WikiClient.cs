@@ -1,30 +1,38 @@
 ﻿// Author: Tataran Stefan-George (EnsyFane)
+using EU4AchievementHelper.Core.Enums;
 using EU4AchievementHelper.Core.Models;
 using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
+using System.Threading.Tasks;
 
 namespace EU4AchievementHelper.Communication.HTTP
 {
-	internal class WikiClient
+	public class WikiClient
 	{
 		private readonly string _wikiUrl;
 		private readonly string _achievementsPath;
+
+		public ObservableCollection<Achievement> Achievements { get; } = new();
 
 		public WikiClient(string wikiUrl, string achievementsPath)
 		{
 			_wikiUrl = wikiUrl;
 			_achievementsPath = achievementsPath;
+
+			CollectAchievements();
 		}
 
-		public IEnumerable<Achievement> GetAllAchievements()
+		private void CollectAchievements()
 		{
 			var html = GetWikiHTML();
 			var table = html.DocumentNode.SelectSingleNode("//table");
+			var body = table.SelectSingleNode("//tbody");
 
-			return ParseTable(table);
+			ParseAsync(body.Descendants("tr"));
 		}
 
 		private HtmlDocument GetWikiHTML()
@@ -37,18 +45,20 @@ namespace EU4AchievementHelper.Communication.HTTP
 			return document;
 		}
 
-		private IEnumerable<Achievement> ParseTable(HtmlNode table)
+		private void ParseAsync(IEnumerable<HtmlNode> nodes)
 		{
-			var body = table.SelectSingleNode("//tbody");
-
-			var achievements = new List<Achievement>();
-
-			body.Descendants("tr")
-				.Skip(1)
-				.ToList()
-				.ForEach(row => achievements.Add(ParseRow(row)));
-
-			return achievements;
+			var childNodes = nodes.Skip(1).ToList();
+			foreach (var row in childNodes)
+			{
+				Task.Factory.StartNew(() =>
+				{
+					var achievement = ParseRow(row);
+					lock (Achievements)
+					{
+						Achievements.Add(achievement);
+					}
+				});
+			}
 		}
 
 		private Achievement ParseRow(HtmlNode row)
@@ -60,9 +70,33 @@ namespace EU4AchievementHelper.Communication.HTTP
 				throw new ArgumentException($"Row does not have the exact amount of cells needed. Required: 7. Received: {cells.Count}. Row: {row}");
 			}
 
-			var imgSrc = _wikiUrl + cells[0].Descendants("div").First().Descendants("a").First().Descendants("img").First().Attributes["src"];
+			var imgSrc = _wikiUrl + cells[0].Descendants("div").First().Descendants("a").First().Descendants("img").First().Attributes["src"].Value;
+			var title = cells[0].Descendants("div").First().Descendants("div").First().Descendants("div").First().InnerText;
+			var description = cells[0].Descendants("div").First().Descendants("div").First().Descendants("div").Skip(1).First().InnerText;
+			var startingConditions = new List<string>();
+			try
+			{
+				var lis = cells[1].Descendants("ul").First().Descendants("li").ToList();
+				foreach (var li in lis)
+				{
+					startingConditions.Add(li.InnerText);
+				}
+			}
+			catch (InvalidOperationException)
+			{
+				startingConditions.Add("");
+			}
 
-			return null;
+			var difficulty = Enum.Parse<Difficulty>(cells[6].InnerText);
+
+			return new Achievement
+			{
+				ImageSrc = imgSrc,
+				Title = title,
+				Description = description,
+				StartingConditions = startingConditions,
+				Difficulty = difficulty
+			};
 		}
 	}
 }
